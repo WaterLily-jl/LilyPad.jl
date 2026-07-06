@@ -14,15 +14,12 @@ BiotSavartBCs = "ec5a6caf-bdf7-41d0-b8e1-5fafde84e19f"
 LilyPadBiotExt = "BiotSavartBCs"
 
 [compat]
-StaticArrays = "1"
-WaterLily = "1.7.0"
 julia = "1.10"
 
 [extras]
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 CUDA_Runtime_jll = "76a88914-d11a-5bdc-97e0-2f5a05c973a2"
-StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["CUDA", "StaticArrays", "Test"]
+test = ["CUDA", "Test"]
