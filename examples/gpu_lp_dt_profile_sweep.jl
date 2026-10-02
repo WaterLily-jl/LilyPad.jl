@@ -105,7 +105,7 @@ function lp_profiled_step!(sim::WaterLily.AbstractSimulation, diag::StepDiagnost
 
     # Corrector projection
     isnan(diag.corrector_div_rms) && (diag.corrector_div_rms = divergence_rms!(flow, pois))
-    corr_proj, corr_iters = project_timed!(flow, pois, 0.5, t₁)
+    corr_proj, corr_iters = project_timed!(flow, pois, 2, t₁)
     projection += corr_proj
     push!(diag.corrector_iters, corr_iters)
 
