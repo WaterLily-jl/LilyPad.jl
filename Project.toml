@@ -14,7 +14,8 @@ BiotSavartBCs = "ec5a6caf-bdf7-41d0-b8e1-5fafde84e19f"
 LilyPadBiotExt = "BiotSavartBCs"
 
 [compat]
-julia = "1.10"
+WaterLily = "1.9.1"
+julia = "1.11"
 
 [extras]
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
