@@ -56,7 +56,8 @@ not yet been considered and discussed.
 **Passing tests do NOT validate algorithm correctness.** Tests exist for:
 - SemiAdvect: departure RK2 structure, scalar component advection on staggered faces, boundary-adjacent transport checks
 - LilyFlow: one-step uniform-flow fixed-point behavior, divergence finiteness after projection, second-step regression (guards against scale_u! bug)
-- LilyPadSim: one-step wrapper parity with WaterLily `Simulation`, timestep progression, second-step regression
+- LilyPadSim: one-step wrapper parity with WaterLily `Simulation`, timestep progression, second-step regression, periodic Taylor-Green steadiness
+- LilyPadBiotExt: one-step parity with `BiotSimulation`, `symmetry` and `perdir` pass-through
 
 Test suite runs on `Array` and `CuArray` backends. CUDA is an optional test dependency; GPU tests are skipped if `CUDA.functional()` returns false.
 
@@ -66,6 +67,7 @@ Test suite runs on `Array` and `CuArray` backends. CUDA is an optional test depe
 - `Δt` set at construction time is the user knob for speed/accuracy tradeoff; larger `Δt` is faster but less accurate
 - Domain BCs are applied in WL's `mom_project!`, not in `mom_predict!`/`mom_correct!`
 - `ν≠0` warns; `g` and `udf` throw
+- Periodic `perdir`: interpolation wraps instead of clamping, and the face at index 2 is advected
 - On WL bumps, diff the overridden functions against upstream, not just their signatures
 
 ## Timestep Control
