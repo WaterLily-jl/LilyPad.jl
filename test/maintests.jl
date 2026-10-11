@@ -1,4 +1,4 @@
-import LilyPad: scalar_advect!, sim_step!, quad, LilyFlow
+import LilyPad: advect!, sim_step!, quad, LilyFlow
 
 @testset "util.jl" begin
     T = Float32
@@ -37,16 +37,13 @@ end
     @test LilyPad.departure(x0, u_cpu, dt) ≈ x0 - dt * U
 
     for f in arrays
-        # 1) Linear field transport using scalar_advect! for both components.
+        # 1) Linear field transport for both components.
         u = zeros(T, N .+ 2..., D) |> f
         apply!((i, x) -> U[i], u)
         src = zeros(T, N .+ 2..., D) |> f
         apply!((i, x) -> x[i], src)
         out = zeros(T, N .+ 2..., D) |> f
-
-        for i in 1:D
-            scalar_advect!(selectdim(out, D + 1, i), selectdim(src, D + 1, i), u, dt, i)
-        end
+        advect!(out, src, u, dt, zero(src))
 
         ref = zeros(T, N .+ 2..., D)
         apply!((i, x) -> x[i] - dt * U[i], ref)
@@ -66,12 +63,11 @@ end
         apply!((i, x) -> i == 1 ? 1f0 : 0f0, u_along)
         src_along = zeros(T, Nb + 2, Nb + 2, D) |> f
         apply!((i, x) -> p(x[1], x[2]), src_along)
-        adv_along = zeros(T, Nb + 2, Nb + 2) |> f
-        scalar_advect!(adv_along, selectdim(src_along, 3, 1), u_along, T(1), 1)
+        adv_along = zero(src_along); advect!(adv_along, src_along, u_along, T(1), zero(src_along))
 
         ref_along = zeros(T, Nb + 2, Nb + 2, D)
         apply!((i, x) -> p(x[1] - T(1), x[2]), ref_along)
-        d_along = Array(adv_along) - Array(selectdim(ref_along, 3, 1))
+        d_along = Array(adv_along)[:, :, 1] - ref_along[:, :, 1]
         r_low = (3:Nb+1, 2:2)
         @test maximum(abs.(d_along[r_low...])) < 2f-4
 
@@ -80,20 +76,19 @@ end
         apply!((i, x) -> i == 2 ? -1f0 : 0f0, u_cross)
         src_cross = zeros(T, Nb + 2, Nb + 2, D) |> f
         apply!((i, x) -> p(x[1], x[2]), src_cross)
-        adv_cross = zeros(T, Nb + 2, Nb + 2) |> f
-        scalar_advect!(adv_cross, selectdim(src_cross, 3, 1), u_cross, T(1), 1)
+        adv_cross = zero(src_cross); advect!(adv_cross, src_cross, u_cross, T(1), zero(src_cross))
 
         ref_cross = zeros(T, Nb + 2, Nb + 2, D)
         apply!((i, x) -> p(x[1], x[2] + T(1)), ref_cross)
-        d_cross = Array(adv_cross) - Array(selectdim(ref_cross, 3, 1))
+        d_cross = Array(adv_cross)[:, :, 1] - ref_cross[:, :, 1]
         @test maximum(abs.(d_cross[r_low...])) < 2f-4
         @test all(isfinite, Array(adv_cross))
 
         # 4) Periodic wave shifted one cell is exact, including across the seam.
         n = 16; u1, s = (zeros(T, n + 2, n + 2, D) |> f for _ in 1:2)
         apply!((i, x) -> T(i == 1), u1); apply!((i, x) -> sinpi(2x[1] / n), s)
-        a = zeros(T, n + 2, n + 2) |> f; scalar_advect!(a, selectdim(s, 3, 1), u1, T(1), 1, (1,))
-        @test maximum(abs.(Array(a)[2:n+1, 2:n+1] .- [sinpi(2(I - 3) / n) for I in 2:n+1, _ in 2:n+1])) < 1f-5
+        a = zero(s); advect!(a, s, u1, T(1), zero(s), (1,))
+        @test maximum(abs.(Array(a)[2:n+1, 2:n+1, 1] .- [sinpi(2(I - 3) / n) for I in 2:n+1, _ in 2:n+1])) < 1f-5
     end
 end
 

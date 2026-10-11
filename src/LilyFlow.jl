@@ -1,4 +1,4 @@
-import WaterLily: @loop, inside_u, inside, ∂, μddn, perBC!
+import WaterLily: @loop, inside_u, ∂, μddn, perBC!
 
 """
     LilyFlow{D,T,...} <: WaterLily.AbstractFlow{D,T}
@@ -28,27 +28,21 @@ Semi-Lagrangian predictor: self-advect `u⁰` and apply BDIM blending.
 """
 function WaterLily.mom_predict!(a::LilyFlow{D}, t₀, t₁; udf=nothing, kwargs...) where D
     isnothing(udf) || throw(ArgumentError("LilyFlow does not support `udf`"))
-    a.f .= a.u⁰; dt = t₁ - t₀
-    for i in 1:D
-        scalar_advect!(selectdim(a.f, D+1, i), selectdim(a.u⁰, D+1, i), a.u⁰, dt, i, a.perdir)
-    end
+    advect!(a.f, a.u⁰, a.u⁰, t₁ - t₀, a.V, a.perdir)
     BDIM!(a)
 end
 
 """    mom_correct!(a::LilyFlow, t)
 
 Semi-Lagrangian corrector: advect `u⁰ - 0.5*dt*μ₀*∇p` under the averaged
-velocity `0.5*(u⁰+u_pred)` and apply BDIM blending.
+velocity `0.5*(u⁰+u_pred)` and apply BDIM blending. Overwrites `u⁰` with the advected source.
 """
 function WaterLily.mom_correct!(a::LilyFlow{D}, t; kwargs...) where D
-    a.f .= a.u⁰; dt = a.Δt[end]
+    dt = a.Δt[end]
     a.u .= (a.u .+ a.u⁰) ./ 2
-    for i in 1:D
-        @loop a.σ[I] = a.u⁰[I,i] over I ∈ CartesianIndices(a.σ)
-        @loop a.σ[I] -= (dt / 2) * a.μ₀[I, i] * ∂(i, I, a.p) over I ∈ inside(a.σ)
-        perBC!(a.σ, a.perdir)
-        scalar_advect!(selectdim(a.f, D+1, i), a.σ, a.u, dt, i, a.perdir)
-    end
+    @loop a.u⁰[Ii] -= (dt / 2) * a.μ₀[Ii] * ∂(last(Ii), front(Ii), a.p) over Ii ∈ inside_u(size(a.p))
+    perBC!(a.u⁰, a.perdir)
+    advect!(a.f, a.u⁰, a.u, dt, a.V, a.perdir)
     BDIM!(a)
 end
 
@@ -62,10 +56,7 @@ WaterLily.CFL(a::LilyFlow; kwargs...) = a.Δt[end]
 """
     BDIM!(a::LilyFlow)
 
-Semi-Lagrangian BDIM blending on the advected velocity field.
+Semi-Lagrangian BDIM blending on the advected velocity field (`advect!` has already subtracted `V`).
 """
-function BDIM!(a::LilyFlow)
-    @loop a.f[Ii] -= a.V[Ii] over Ii ∈ CartesianIndices(a.f)
-    @loop a.u[Ii] = μddn(Ii, a.μ₁, a.f) + a.V[Ii] + a.μ₀[Ii] * a.f[Ii] over Ii ∈ inside_u(size(a.p))
-end
+BDIM!(a::LilyFlow) = @loop a.u[Ii] = μddn(Ii, a.μ₁, a.f) + a.V[Ii] + a.μ₀[Ii] * a.f[Ii] over Ii ∈ inside_u(size(a.p))
 
