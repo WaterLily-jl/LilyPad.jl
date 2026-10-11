@@ -2,6 +2,7 @@ using LilyPad
 using WaterLily
 using Test
 using StaticArrays
+using BiotSavartBCs
 
 _cuda = try (@eval using CUDA; CUDA.functional()) catch _ false end
 

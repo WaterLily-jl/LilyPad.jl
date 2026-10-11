@@ -88,6 +88,12 @@ end
         d_cross = Array(adv_cross) - Array(selectdim(ref_cross, 3, 1))
         @test maximum(abs.(d_cross[r_low...])) < 2f-4
         @test all(isfinite, Array(adv_cross))
+
+        # 4) Periodic wave shifted one cell is exact, including across the seam.
+        n = 16; u1, s = (zeros(T, n + 2, n + 2, D) |> f for _ in 1:2)
+        apply!((i, x) -> T(i == 1), u1); apply!((i, x) -> sinpi(2x[1] / n), s)
+        a = zeros(T, n + 2, n + 2) |> f; scalar_advect!(a, selectdim(s, 3, 1), u1, T(1), 1, (1,))
+        @test maximum(abs.(Array(a)[2:n+1, 2:n+1] .- [sinpi(2(I - 3) / n) for I in 2:n+1, _ in 2:n+1])) < 1f-5
     end
 end
 
@@ -146,6 +152,21 @@ end
         sim_step!(ref)
         @test L₂(sim.flow.u[:, :, 1] .- ref.flow.u[:, :, 1]) < 1f-3
         @test L₂(sim.flow.u[:, :, 2] .- ref.flow.u[:, :, 2]) < 1f-3
-    end
 
+        # Inviscid Taylor-Green vortex is a steady periodic solution
+        k = 2f0π / L; tgv(i, x) = i == 1 ? -sin(k * x[1]) * cos(k * x[2]) : cos(k * x[1]) * sin(k * x[2])
+        sim = LilyPadSim(N, (0, 0), L; U=1, u0=tgv, perdir=(1, 2), Δt=0.5, T=Float32, mem=f); u0 = Array(sim.flow.u)
+        foreach(_ -> sim_step!(sim), 1:10)
+        @test maximum(abs.(Array(sim.flow.u) .- u0)[2:L+1, 2:L+1, :]) < 2f-2
+    end
+end
+
+@testset "LilyPadBiotExt.jl" begin
+    sim(ctor, n; kw...) = ctor(n, (1, 0, 0)[1:length(n)], 4; body=AutoBody((x, t) -> sqrt(sum(abs2, x[1:2] .- 8)) - 2), Δt=0.25, T=Float32, kw...)
+    for mem in arrays, (n, kw) in (((16, 16), (; symmetry=(-2,))), ((16, 16, 16), (; perdir=(3,))))
+        lp, wl = sim(LilyBiotSim, n; mem, kw...), sim(BiotSimulation, n; mem, kw...)
+        @test lp.pois.sym == wl.pois.sym && lp.flow.perdir == wl.flow.perdir
+        sim_step!(lp); sim_step!(wl)
+        @test maximum(abs, Array(lp.flow.u) .- Array(wl.flow.u)) < 0.1
+    end
 end

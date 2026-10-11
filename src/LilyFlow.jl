@@ -1,4 +1,4 @@
-import WaterLily: @loop, inside_u, inside, ∂, μddn
+import WaterLily: @loop, inside_u, inside, ∂, μddn, perBC!
 
 """
     LilyFlow{D,T,...} <: WaterLily.AbstractFlow{D,T}
@@ -30,7 +30,7 @@ function WaterLily.mom_predict!(a::LilyFlow{D}, t₀, t₁; udf=nothing, kwargs.
     isnothing(udf) || throw(ArgumentError("LilyFlow does not support `udf`"))
     a.f .= a.u⁰; dt = t₁ - t₀
     for i in 1:D
-        scalar_advect!(selectdim(a.f, D+1, i), selectdim(a.u⁰, D+1, i), a.u⁰, dt, i)
+        scalar_advect!(selectdim(a.f, D+1, i), selectdim(a.u⁰, D+1, i), a.u⁰, dt, i, a.perdir)
     end
     BDIM!(a)
 end
@@ -46,7 +46,8 @@ function WaterLily.mom_correct!(a::LilyFlow{D}, t; kwargs...) where D
     for i in 1:D
         @loop a.σ[I] = a.u⁰[I,i] over I ∈ CartesianIndices(a.σ)
         @loop a.σ[I] -= (dt / 2) * a.μ₀[I, i] * ∂(i, I, a.p) over I ∈ inside(a.σ)
-        scalar_advect!(selectdim(a.f, D+1, i), a.σ, a.u, dt, i)
+        perBC!(a.σ, a.perdir)
+        scalar_advect!(selectdim(a.f, D+1, i), a.σ, a.u, dt, i, a.perdir)
     end
     BDIM!(a)
 end
