@@ -1,4 +1,4 @@
-import WaterLily: BC!, exitBC!, @loop, inside_u, inside, ∂, μddn
+import WaterLily: @loop, inside_u, inside, ∂, μddn
 
 """
     LilyFlow{D,T,...} <: WaterLily.AbstractFlow{D,T}
@@ -18,21 +18,20 @@ Base.setproperty!(a::LilyFlow, name::Symbol, x) =
 
 """    mom_predict!(a::LilyFlow, t₀, t₁)
 
-Semi-Lagrangian predictor: self-advect `u⁰`, apply BDIM blending, and enforce BCs at `t₁`.
+Semi-Lagrangian predictor: self-advect `u⁰` and apply BDIM blending.
 """
 function WaterLily.mom_predict!(a::LilyFlow{D}, t₀, t₁; kwargs...) where D
     a.f .= a.u⁰; dt = t₁ - t₀
     for i in 1:D
         scalar_advect!(selectdim(a.f, D+1, i), selectdim(a.u⁰, D+1, i), a.u⁰, dt, i)
     end
-    BDIM!(a); BC!(a.u, a.uBC, a.exitBC, a.perdir, t₁)
-    a.exitBC && exitBC!(a.u, a.u⁰, a.Δt[end])
+    BDIM!(a)
 end
 
 """    mom_correct!(a::LilyFlow, t)
 
 Semi-Lagrangian corrector: advect `u⁰ - 0.5*dt*μ₀*∇p` under the averaged
-velocity `0.5*(u⁰+u_pred)`, apply BDIM blending, and enforce BCs at `t`.
+velocity `0.5*(u⁰+u_pred)` and apply BDIM blending.
 """
 function WaterLily.mom_correct!(a::LilyFlow{D}, t; kwargs...) where D
     a.f .= a.u⁰; dt = a.Δt[end]
@@ -42,7 +41,7 @@ function WaterLily.mom_correct!(a::LilyFlow{D}, t; kwargs...) where D
         @loop a.σ[I] -= (dt / 2) * a.μ₀[I, i] * ∂(i, I, a.p) over I ∈ inside(a.σ)
         scalar_advect!(selectdim(a.f, D+1, i), a.σ, a.u, dt, i)
     end
-    BDIM!(a); BC!(a.u, a.uBC, a.exitBC, a.perdir, t)
+    BDIM!(a)
 end
 
 """
