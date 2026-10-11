@@ -17,9 +17,8 @@ CFL constraint from advection, so larger values trade accuracy for speed.
 - `nonbiotfaces`: tuple of face indices to exclude from Biot-Savart BCs (e.g. `(-2,)`)
 - `fmm`: use the Fast Multi-level Method (`true`, default) or tree-sum (`false`)
 """
-@inline function LilyPad.LilyBiotSim(dims, uBC, L; Δt=1.5, nonbiotfaces=(), fmm=true, mem=Array, kwargs...)
-    WaterLily.Simulation(dims, uBC, L;
-        flow_ctor=(dims, uBC; kw...) -> LilyFlow(dims, uBC; kw...),
+function LilyPad.LilyBiotSim(dims, uBC, L; Δt=1.5, nonbiotfaces=(), fmm=true, mem=Array, kwargs...)
+    WaterLily.Simulation(dims, uBC, L; flow_ctor=LilyFlow,
         pois_ctor=flow -> BiotSavartPoisson(flow; nonbiotfaces, fmm, mem),
         Δt, mem, kwargs...)
 end

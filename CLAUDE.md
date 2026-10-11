@@ -2,8 +2,8 @@
 
 ## Agent Routing Note
 - This repo's local CLAUDE file is this project-root `CLAUDE.md`.
-- Read the global `c:\Users\gweymouth\.claude\CLAUDE.md` first, then this local file.
-- Write top-level persistent directives to the global `c:\Users\gweymouth\.claude\CLAUDE.md` file.
+- Read the global `~/.claude/CLAUDE.md` first, then this local file.
+- Write top-level persistent directives to the global `~/.claude/CLAUDE.md` file.
 - On conversation compaction or resume, reread both the global file and this project-root `CLAUDE.md` before continuing.
 
 
@@ -31,8 +31,8 @@ This package extends the WaterLily.jl package with a semi-implicit time stepping
 - `test/maintests.jl` — @testsets for each source file
 
 ## Environment Notes
-A legacy code is in the ../lily-pad/ folder. The WaterLily source is in ../WaterLily.jl/.
-WaterLily version: 1.6.1 (uuid: ed894a53-35f9-47f1-b17f-85db9237eebd)
+A legacy code is in the ../lily-pad/ folder. The WaterLily source is in ../WaterLily(.jl)/.
+WaterLily version: 1.9.1 (uuid: ed894a53-35f9-47f1-b17f-85db9237eebd)
 
 ## Critical Comparison Guardrail (Do Not Skip)
 - **Always match viscosity between WL and LP before any timing or solver comparison.**
@@ -64,6 +64,9 @@ Test suite runs on `Array` and `CuArray` backends. CUDA is an optional test depe
 - Diffusion omitted in v0.1 (inviscid semi-Lagrangian)
 - No CFL constraint from advection; `CFL(flow::LilyFlow)` returns `Δt[end]` unchanged to keep the step fixed
 - `Δt` set at construction time is the user knob for speed/accuracy tradeoff; larger `Δt` is faster but less accurate
+- Domain BCs are applied in WL's `mom_project!`, not in `mom_predict!`/`mom_correct!`
+- `ν≠0` warns; `g` and `udf` throw
+- On WL bumps, diff the overridden functions against upstream, not just their signatures
 
 ## Timestep Control
 - `Δt` is passed through `LilyPadSim(...; Δt=...)` → `WaterLily.Simulation` → `LilyFlow` → `Flow`
