@@ -1,26 +1,43 @@
 name: CI
-
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/CI.yml'
+      - 'ext/**'
+      - 'src/**'
+      - 'test/**'
+      - 'Project.toml'
   push:
     branches:
       - main
     tags: '*'
-  pull_request:
-
+    paths:
+      - '.github/workflows/CI.yml'
+      - 'ext/**'
+      - 'src/**'
+      - 'test/**'
+      - 'Project.toml'
 jobs:
   test:
-    name: Julia ${{ matrix.version }} - ${{ matrix.os }}
+    if: github.event.pull_request.draft == false
+    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ github.event_name }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        version: ['1.11', '1', 'pre']
+        version:
+          - '1.11'
+          - '1.13'
+        os:
+          - ubuntu-latest
+          - macOS-latest
+          - windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: julia-actions/setup-julia@v2
+      - uses: actions/checkout@v7
+      - uses: julia-actions/setup-julia@v3
         with:
           version: ${{ matrix.version }}
+          arch: 'default'
       - uses: julia-actions/cache@v2
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
