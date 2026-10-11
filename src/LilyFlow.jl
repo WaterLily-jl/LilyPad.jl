@@ -3,11 +3,11 @@ import WaterLily: BC!, exitBC!, @loop, inside_u, inside, ∂, μddn
 """
     LilyFlow{D,T,...} <: WaterLily.AbstractFlow{D,T}
 
-Thin wrapper around `WaterLily.Flow` that overrides `mom_predict!`, `mom_correct!` 
+Thin wrapper around `WaterLily.Flow` that overrides `mom_predict!`, `mom_correct!`
 `BDIM!` and `CFL` with semi-Lagrangian advection functions.
 """
-struct LilyFlow{D, T, Sf<:AbstractArray{T}, Vf<:AbstractArray{T}, Tf<:AbstractArray{T}} <: AbstractFlow{D,T}
-    flow :: Flow{D,T,Sf,Vf,Tf}
+struct LilyFlow{D, T, Sf<:AbstractArray{T}, Vf<:AbstractArray{T}, Tf<:AbstractArray{T}, Lf} <: AbstractFlow{D,T}
+    flow :: Flow{D,T,Sf,Vf,Tf,Lf}
 end
 LilyFlow(args...; kwargs...) = LilyFlow(Flow(args...; kwargs...))
 
