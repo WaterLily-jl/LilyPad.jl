@@ -114,6 +114,12 @@ end
         @test L₂(flow.u[:, :, 1] .- U[1]) < 2f-5
         @test L₂(flow.u[:, :, 2] .- U[2]) < 1f-5
     end
+
+    # Unsupported options
+    @test_logs (:warn,) LilyFlow(N, U; ν=0.1f0)
+    @test_throws ArgumentError LilyFlow(N, U; g=(i, x, t) -> 0f0)
+    sim = LilyPadSim(N, U, N[1])
+    @test_throws ArgumentError sim_step!(sim; udf=(flow, t) -> nothing)
 end
 
 @testset "LilyPadSim.jl" begin
