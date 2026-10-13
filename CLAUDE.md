@@ -59,7 +59,9 @@ not yet been considered and discussed.
 - LilyPadSim: one-step wrapper parity with WaterLily `Simulation`, timestep progression, second-step regression, periodic Taylor-Green steadiness
 - LilyPadBiotExt: one-step parity with `BiotSimulation`, `symmetry` and `perdir` pass-through
 
-Test suite runs on `Array` and `CuArray` backends. CUDA is an optional test dependency; GPU tests are skipped if `CUDA.functional()` returns false.
+Test suite runs on `Array` and/or `CuArray`, selected like WaterLily's `WATERLILY_BACKENDS`: `LILYPAD_BACKENDS=cpu|cuda|all` (default `cpu`). CUDA is not a test dependency; it is installed on demand when requested and skipped with a warning if not functional. Run GPU tests locally with `LILYPAD_BACKENDS=all` before any PR touching kernels or tests.
+- GPU-safe test closures: capture only isbits values (use `f0` literals, not `T(...)`), and no `x[1:2]`-style slices of `SVector`s (they allocate).
+- Open issue: with Biot BCs, ghost corners/edges of `u` are never set (`pflowBC!`/`biotBC!` skip them), but LP's `vinterp`/`quad` can read them near domain corners. Since WL 1.9.2 (`fill!(a.u,0)` in `mom_step!`) they differ between LP and WL, so the Biot parity assertion is marked `broken=true` until BiotSavartBCs.jl#28 is released; then bump compat and remove the marker. Keep comparing them in tests.
 
 ## Scheme Notes (Semi-Lagrangian two-step)
 - Diffusion omitted in v0.1 (inviscid semi-Lagrangian)
@@ -85,11 +87,12 @@ Test suite runs on `Array` and `CuArray` backends. CUDA is an optional test depe
 - **Interpolation asymmetry fix landed**: semi-Lagrangian component interpolation now uses nearest-centered quadratic (`quad`) to avoid mirror-bias from floor-centered stencils.
 - **Advection interpolation reduction landed**: corrector now reuses the averaged velocity in `flow.u`, reducing total vector-interp calls from 6 to 4 per advected point (predictor 2 + corrector 2 instead of predictor 2 + corrector 4).
 - **README path simplified**: `examples/readme_circle_compare.jl` is the canonical example and emits one-step velocity + long-run force trace figures.
-- **Current force status (inviscid comparison, LP `Δt=1.5`, metrics over t=25–50)**:
-	- lift mean absolute error (`mean(WL) - mean(LP)`): `-0.093` (expected mean lift is near zero; do not use relative error)
-	- drag mean relative error (`1 - mean(LP)/mean(WL)`): `0.244` (~25% lower mean drag in LP)
-	- drag std  relative error (`1 - std(LP)/std(WL)`):  `-0.048` (larger LP amplitude)
-	- lift std  relative error (`1 - std(LP)/std(WL)`):  `-0.036` (larger LP amplitude)
+- **Current force status (inviscid, WL 1.9.2, LP `Δt=1.5`, peak-to-peak over t=30–60)**:
+	- drag mean relative error (`1 - mean(LP)/mean(WL)`): `0.238` (~24% lower mean drag in LP)
+	- drag std  relative error (`1 - std(LP)/std(WL)`):  `0.015`
+	- lift std  relative error (`1 - std(LP)/std(WL)`):  `-0.040` (larger LP amplitude)
+	- Always average over whole cycles: a partial cycle biases the means.
+	- Lift mean is not reported: LP's cycle-to-cycle amplitude variation gives it a ~0.02 standard error, too large to resolve.
 - **3D GPU profiling status (inviscid, synchronized timing, post-refactor)**:
 	- `Δt=1.5`: `sec/(tU/L) = 0.325953`; advection share `0.602`; projection share `0.387`.
 	- `Δt=2.5`: `sec/(tU/L) = 0.278146`; advection share `0.399`; projection share `0.594`.
@@ -100,7 +103,7 @@ Test suite runs on `Array` and `CuArray` backends. CUDA is an optional test depe
 - **Current allocation-testing rule**: for the README circle case, measure after initialization with `remeasure=false` and compare allocations per unit simulated time (`tU/L`), not per step. On that metric LP is currently better because it advances farther per step.
 - **Profiling note**: recent evidence shows interpolation-heavy advection kernels are the primary GPU bottleneck at tested timesteps; projection remains important but was previously over-attributed due to timing methodology. The corrector interp-count reduction was worthwhile, but further reconstruction simplification appears to be in diminishing-returns territory.
 - **README dt-sweep status**: LP `Δt` in the `1.5-2.5` range currently looks like the best speed/accuracy tradeoff on the README circle case; `dt` above ~`2.5` can look faster but shows unstable/error-sign-flipping behavior.
-- **Interpretation**: oscillation amplitudes match well (~1-2%); mean drag offset (~25%) is the primary open correctness question.
+- **Interpretation**: oscillation amplitudes match well (~2-4%); mean drag offset (~24%) is the primary open correctness question.
 - **Near-term execution order**: allocation checks first, then CPU README benchmark/optimization, then 3D GPU bring-up.
 - **Constraint**: treat performance numbers as provisional until each stage's correctness checks pass.
 

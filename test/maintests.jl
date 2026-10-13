@@ -56,7 +56,7 @@ end
             @test maximum(abs.(diff[r_last..., i])) < 1f-4
         end
 
-        # 2) Nontrivial field transported along lower boundary for i=1.
+        # 2) Nontrivial field transported along lower and upper boundaries for i=1.
         p(x, y) = 0.3f0 * x^2 + 0.2f0 * y^2 + 0.15f0 * x * y + 0.4f0 * x - 0.7f0 * y + 1.2f0
         Nb = 20
         u_along = zeros(T, Nb + 2, Nb + 2, D) |> f
@@ -70,6 +70,7 @@ end
         d_along = Array(adv_along)[:, :, 1] - ref_along[:, :, 1]
         r_low = (3:Nb+1, 2:2)
         @test maximum(abs.(d_along[r_low...])) < 2f-4
+        @test maximum(abs.(d_along[3:Nb+1, Nb+1:Nb+1])) < 2f-4
 
         # 3) Nontrivial field transported toward lower boundary for i=1.
         u_cross = zeros(T, Nb + 2, Nb + 2, D) |> f

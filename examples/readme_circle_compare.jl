@@ -56,8 +56,8 @@ function get_force_history!(sim; t_end=50.0, dt_out=0.1)
     ts, drag, lift
 end
 
-time_wl, drag_wl, lift_wl = get_force_history!(wl; t_end=50.0)
-time_lp, drag_lp, lift_lp = get_force_history!(lp; t_end=50.0)
+time_wl, drag_wl, lift_wl = get_force_history!(wl; t_end=60.0)
+time_lp, drag_lp, lift_lp = get_force_history!(lp; t_end=60.0)
 
 pf = plot(time_wl, drag_wl, label="drag WL", xlabel="tU/L", ylabel="Pressure force coeff")
 plot!(pf, time_lp, drag_lp, label="drag LP", ls=:dash)
@@ -65,29 +65,31 @@ plot!(pf, time_wl, lift_wl, label="lift WL")
 plot!(pf, time_lp, lift_lp, label="lift LP", ls=:dash)
 savefig(pf, joinpath(out_dir, "circle_force_compare.png"))
 
-# Settled-regime metrics over t=25-50.
-# Use absolute error for lift mean (reference is near zero).
-mask_wl = time_wl .>= 25.0
-mask_lp = time_lp .>= 25.0
+# peak-to-peak, since a partial cycle biases the means
+function cycles(ts, lift; t0=30, t1=60)
+    peaks = filter(k -> lift[k-1] < lift[k] ≥ lift[k+1] && t0 ≤ ts[k] ≤ t1, 2:length(lift)-1)
+    first(peaks):last(peaks)-1
+end
+cyc_wl, cyc_lp = cycles(time_wl, lift_wl), cycles(time_lp, lift_lp)
 
-lift_mean_abs_err = mean(lift_wl[mask_wl]) - mean(lift_lp[mask_lp])
-drag_mean_err = 1 - mean(drag_lp[mask_lp]) / mean(drag_wl[mask_wl])
-drag_std_err  = 1 - std(drag_lp[mask_lp])  / std(drag_wl[mask_wl])
-lift_std_err  = 1 - std(lift_lp[mask_lp])  / std(lift_wl[mask_wl])
+lift_mean_abs_err = mean(lift_wl[cyc_wl]) - mean(lift_lp[cyc_lp]) # exact mean is zero
+drag_mean_err = 1 - mean(drag_lp[cyc_lp]) / mean(drag_wl[cyc_wl])
+drag_std_err  = 1 - std(drag_lp[cyc_lp])  / std(drag_wl[cyc_wl])
+lift_std_err  = 1 - std(lift_lp[cyc_lp])  / std(lift_wl[cyc_wl])
 
 println("Lift mean abs error WL - LP:  ", lift_mean_abs_err)
 println("Drag mean relative error (1 - LP/WL):  ", drag_mean_err)
 println("Drag std  relative error (1 - LP/WL):  ", drag_std_err)
 println("Lift std  relative error (1 - LP/WL):  ", lift_std_err)
 
-# Pressure field comparison at t=50
+# Pressure field comparison at t=60
 p_wl = Array(wl.flow.p)
 p_lp = Array(lp.flow.p)
 clims = extrema([p_wl; p_lp])
-pp1 = heatmap(p_wl', title="WaterLily pressure (t=50)", xlabel="x", ylabel="y",
+pp1 = heatmap(p_wl', title="WaterLily pressure (t=60)", xlabel="x", ylabel="y",
               clims=clims, color=:RdBu)
-pp2 = heatmap(p_lp', title="LilyPad pressure (t=50)", xlabel="x", ylabel="y",
+pp2 = heatmap(p_lp', title="LilyPad pressure (t=60)", xlabel="x", ylabel="y",
               clims=clims, color=:RdBu)
 pp = plot(pp1, pp2, layout=(1, 2), size=(1100, 420))
 savefig(pp, joinpath(out_dir, "circle_pressure_final_compare.png"))
-println("=== Pressure comparison at t=50 saved ===")
+println("=== Pressure comparison at t=60 saved ===")
