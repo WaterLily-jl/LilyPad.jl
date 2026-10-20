@@ -32,7 +32,7 @@ This package extends the WaterLily.jl package with a semi-implicit time stepping
 
 ## Environment Notes
 A legacy code is in the ../lily-pad/ folder. The WaterLily source is in ../WaterLily(.jl)/.
-WaterLily version: 1.9.1 (uuid: ed894a53-35f9-47f1-b17f-85db9237eebd)
+WaterLily version: 1.10 (uuid: ed894a53-35f9-47f1-b17f-85db9237eebd); `vinterp` needs its component-indexed `_interp(x, u, i)` (WaterLily.jl#371)
 
 ## Critical Comparison Guardrail (Do Not Skip)
 - **Always match viscosity between WL and LP before any timing or solver comparison.**

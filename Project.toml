@@ -16,7 +16,7 @@ LilyPadBiotExt = "BiotSavartBCs"
 [compat]
 BiotSavartBCs = "1"
 StaticArrays = "1"
-WaterLily = "1.9.1"
+WaterLily = "1.10"
 julia = "1.11"
 
 [extras]
