@@ -163,6 +163,6 @@ end
         lp, wl = sim(LilyBiotSim, n; mem, kw...), sim(BiotSimulation, n; mem, kw...)
         @test lp.pois.sym == wl.pois.sym && lp.flow.perdir == wl.flow.perdir
         sim_step!(lp); sim_step!(wl)
-        @test maximum(abs, Array(lp.flow.u) .- Array(wl.flow.u)) < 0.1 broken=true # unset ghost corners, fixed by BiotSavartBCs.jl#28
+        @test maximum(abs, Array(lp.flow.u) .- Array(wl.flow.u)) < 0.1
     end
 end
