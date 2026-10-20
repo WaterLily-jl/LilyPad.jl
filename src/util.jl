@@ -18,7 +18,7 @@ Quadratic interpolation of the face-`i` field `f` at `x` (`i=0` for cell-centred
 Queries are clamped to the domain, or wrapped in the `perdir` directions.
 """
 @inline function quad(x::SVector{D,T}, f, i=0, perdir=()) where {D,T}
-    xh = SVector{D,T}(_bound(x[d] + T(d == i) / 2, 0.5, size(f, d) - 3 + T(d == i) / 2, size(f, d) - 2, d ∈ perdir) for d in 1:D) .+ T(1.5)
+    xh = SVector{D,T}(_bound(x[d] + T(d == i) / 2, 0.5, size(f, d) - 2.5 + T(d == i), size(f, d) - 2, d ∈ perdir) for d in 1:D) .+ T(1.5)
     c = ntuple(d -> clamp(round(Int, xh[d]), 2, size(f, d) - 1), D)
     w = ntuple(d -> (t = xh[d] - c[d]; (t * (t - 1) / 2, 1 - t * t, t * (t + 1) / 2)), D)
     acc = zero(eltype(f))
