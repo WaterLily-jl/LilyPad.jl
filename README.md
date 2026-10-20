@@ -48,24 +48,20 @@ One-step velocity comparison (`u_x`):
 
 ![One-step circle velocity comparison](assets/circle_one_step_compare.png)
 
-Long-run force histories (`tU/L = 50`):
+Long-run force histories (`tU/L = 60`):
 
 ![Circle force history comparison](assets/circle_force_compare.png)
 
-Final pressure field comparison (`tU/L = 50`):
+Final pressure field comparison (`tU/L = 60`):
 
 ![Circle pressure comparison](assets/circle_pressure_final_compare.png)
 
-These are the current outputs from `examples/readme_circle_compare.jl` for the
-inviscid circle case (`ν=0` in both WL and LP, constant `Δt=1.5` for LP).
-Metrics are computed over the settled regime `t=25–50`. Lift mean is reported
-as an absolute difference (WL - LP), not a relative error, because the expected
-mean lift is near zero.
+Outputs of `examples/readme_circle_compare.jl` (`ν=0` for both, `Δt=1.5` for LP),
+averaged peak-to-peak over `t=30–60`.
 
-- `lift_mean_abs_err = -0.093`
-- `drag_mean_err = 0.244`  (LP predicts ~25% lower mean drag than WL)
-- `drag_std_err  = -0.048` (~5% larger drag oscillation amplitude)
-- `lift_std_err  = -0.036` (~4% larger lift oscillation amplitude)
+- `drag_mean_err = 0.238`  (LP predicts ~24% lower mean drag than WL)
+- `drag_std_err  = 0.015`  (~1.5% smaller drag oscillation amplitude)
+- `lift_std_err  = -0.040` (~4% larger lift oscillation amplitude)
 
 ## Quick Switching Pattern
 
