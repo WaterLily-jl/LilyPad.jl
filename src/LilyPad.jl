@@ -17,9 +17,7 @@ The timestep `Δt` is the primary method knob: the semi-Lagrangian scheme has no
 CFL constraint from advection, so larger values trade accuracy for speed.
 """
 LilyPadSim(dims, uBC, L; Δt=1.5, kwargs...) =
-    WaterLily.Simulation(dims, uBC, L;
-        flow_ctor=(dims, uBC; kw...) -> LilyFlow(dims, uBC; kw...),
-        Δt, kwargs...)
+    WaterLily.Simulation(dims, uBC, L; flow_ctor=LilyFlow, Δt, kwargs...)
 
 export LilyPadSim, LilyBiotSim, LilyFlow
 # Re-export WaterLily interface so users only need `using LilyPad`
