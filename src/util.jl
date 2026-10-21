@@ -9,7 +9,7 @@ end
 
 # `WaterLily.interp` of vector field `u`, wrapping in the `perdir` directions
 @inline vinterp(x::SVector{D,T}, u, perdir=()) where {D,T} = SVector{D,T}(_interp(SVector{D,T}(
-    _bound(x[d] + T(d == i) / 2, 0, size(u, d) - 2, size(u, d) - 2, d ∈ perdir) for d in 1:D), view(u, ntuple(_ -> :, D)..., i)) for i in 1:D)
+    _bound(x[d] + T(d == i) / 2, 0, size(u, d) - 2, size(u, d) - 2, d ∈ perdir) for d in 1:D), u, i) for i in 1:D)
 
 """
     quad(x, f, i=0, perdir=())
