@@ -12,7 +12,7 @@ This package extends the WaterLily.jl package with a semi-implicit time stepping
 
 ## Key Types
 
-- `LilyFlow{D,T,...} <: WaterLily.AbstractFlow{D,T}` — thin wrapper around `WaterLily.Flow`; overrides `mom_step!`, `CFL`, and `BDIM!` with a semi-Lagrangian BDF2 step; holds two velocity buffers `u⁺`, `ū`; all other field access forwards to the inner `flow` via `getproperty`/`setproperty!`
+- `LilyFlow{D,T,...} <: WaterLily.AbstractFlow{D,T}` — thin wrapper around `WaterLily.Flow`; overrides `mom_step!`, `CFL`, and `BDIM!` with a semi-Lagrangian BDF2 step; holds the history `ũ` and its swap buffer `ũ′`; all other field access forwards to the inner `flow` via `getproperty`/`setproperty!`
 - `LilyPadSim` — plain function (constructor alias), not a struct; returns `WaterLily.Simulation` built with `flow_ctor=LilyFlow`
 - `WaterLily.AbstractPoisson` / `MultiLevelPoisson` — reused unchanged for pressure projection
 
@@ -63,12 +63,13 @@ Test suite runs on `Array` and/or `CuArray`, selected like WaterLily's `WATERLIL
 - GPU-safe test closures: capture only isbits values (use `f0` literals, not `T(...)`), and no `x[1:2]`-style slices of `SVector`s (they allocate).
 
 ## Scheme Notes (Semi-Lagrangian BDF2)
-- `(3uⁿ⁺¹ - 4uⁿ(x) + uⁿ⁻¹(x⁻))/2Δt = -∇pⁿ⁺¹ + ν∇²u`, one projection per step (Xiu et al. 2005); `x`, `x⁻` backtrack one step each under `u⁺=(3uⁿ-uⁿ⁻¹)/2` and `ū=(uⁿ+uⁿ⁻¹)/2`
+- `(3uⁿ⁺¹ - 4uⁿ(x) + ũⁿ(x))/2Δt = -∇pⁿ⁺¹ + ν∇²u`, one projection per step (Xiu et al. 2005); `x` backtracks once under `u⁺=(3uⁿ-uⁿ⁻¹)/2`; `ũⁿ` is `uⁿ⁻¹` carried forward by the previous step, so the first step is BDF1
+- Backtracking `uⁿ⁻¹` over a second leg instead is unstable for small Δt (mismatched stencils); inviscid TGV at Δt≤1 still gains energy late, in BDF1 too, so it's in the semi-Lagrangian transport
 - `mom_project!` takes `w::Int`, so `p` is scaled by 2/3 around a `w=1` projection
 - No CFL constraint from advection; `CFL(flow::LilyFlow)` returns `Δt[end]` unchanged to keep the step fixed
 - `Δt` set at construction time is the user knob for speed/accuracy tradeoff; larger `Δt` is faster but less accurate
 - Domain BCs are applied in WL's `mom_project!`, not in the advection kernel
-- Viscosity diffuses each BDF2 sample over its age (`quad` variance `2νΔt` and `4νΔt`); stable for `νΔt ≤ 1/3`; `g` and `udf` throw
+- Viscosity diffuses each BDF2 sample over its age (`quad` variance `2νΔt` per step, so `ũ` reaches `4νΔt`); stable for `νΔt ≤ 1/3`; `g` and `udf` throw
 - Periodic `perdir`: interpolation wraps instead of clamping, and the face at index 2 is advected
 - On WL bumps, diff the overridden functions against upstream, not just their signatures
 
