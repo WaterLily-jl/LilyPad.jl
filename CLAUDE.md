@@ -89,11 +89,11 @@ Test suite runs on `Array` and/or `CuArray`, selected like WaterLily's `WATERLIL
 
 	|           | Cd    | Cd′   | CL    | St    | s/(tU/L) |
 	|-----------|-------|-------|-------|-------|----------|
-	| WaterLily | 1.742 | 0.128 | 1.410 | 0.256 | 0.271    |
-	| LilyPad   | 1.913 | 0.148 | 1.564 | 0.254 | 0.020    |
+	| WaterLily | 1.742 | 0.128 | 1.410 | 0.256 | 0.256    |
+	| LilyPad   | 1.891 | 0.141 | 1.513 | 0.256 | 0.019    |
 
-	- LP vs WL: Cd +10%, Cd′ +16%, CL amplitude +11%, St −1%.
-	- Speed-up 11–13×: 7× from `Δt` (WL's viscous CFL gives `Δt≈0.35`), 1.5× per step since the 2D case is kernel-launch bound (GPU busy 20–27%) and LP launches 161 vs 248 kernels per step.
+	- LP vs WL: Cd +9%, Cd′ +10%, CL amplitude +7%, St 0%.
+	- Speed-up 13×: 7× from `Δt` (WL's viscous CFL gives `Δt≈0.35`), 1.9× per step since the 2D case is kernel-launch bound.
 	- Always average over whole cycles. Lift mean is not reported: its cycle-to-cycle standard error is too large to resolve.
 - **3D sphere, GPU, ν=0, LP `Δt=2.5`** (s/(tU/L)): L=32 WL 2.60, LP 0.77 (3.4×); L=64 WL 50.3, LP 12.5 (4.0×). Large 3D grids are compute bound: LP costs 1.26× WL per step; advection ~50% and projection ~38% of LP GPU time; 3 MG iterations per projection vs WL's 1.
 - **Viscous validation**: Taylor–Green decay error ≤0.2% (same as WL) for `νΔt ≤ 0.15`, effective ν +1.9% at `νΔt = 1/3`. Circle L=16, Re=200 vs WL: Cd +3.5%, CL amplitude +4%, St +1%.

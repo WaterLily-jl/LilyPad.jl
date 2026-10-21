@@ -56,10 +56,10 @@ Outputs of `examples/readme_circle_compare.jl` (`L=32`, `Re=500`, `Δt=2.5` for 
 
 |           | Cd    | Cd′   | CL    | St    | s/(tU/L) |
 |-----------|-------|-------|-------|-------|----------|
-| WaterLily | 1.742 | 0.128 | 1.410 | 0.256 | 0.271    |
-| LilyPad   | 1.913 | 0.148 | 1.564 | 0.254 | 0.020    |
+| WaterLily | 1.742 | 0.128 | 1.410 | 0.256 | 0.256    |
+| LilyPad   | 1.891 | 0.141 | 1.513 | 0.256 | 0.019    |
 
-LilyPad is ~13× faster: a 7× larger time step (WaterLily's viscous CFL gives `Δt≈0.35`) and 1.5× cheaper steps, since this small 2D case is kernel-launch bound and LilyPad launches 35% fewer kernels.
+LilyPad is ~13× faster: a 7× larger time step (WaterLily's viscous CFL gives `Δt≈0.35`) and 1.9× cheaper steps, since this small 2D case is kernel-launch bound and LilyPad launches fewer kernels.
 
 ## Quick Switching Pattern
 
