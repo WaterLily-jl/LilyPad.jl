@@ -8,7 +8,7 @@ the method by changing the constructor only.
 ## Method Difference
 
 - WaterLily: uses `Simulation(...)` (flux-form convective step)
-- LilyPad: uses `LilyPadSim(...)` (semi-Lagrangian predictor/corrector, fixed timestep)
+- LilyPad: uses `LilyPadSim(...)` (semi-Lagrangian BDF2 step, fixed timestep)
 
 Everything else (`sim_step!`, `sim_time`, field access, measurement utilities)
 stays the same.
@@ -21,17 +21,17 @@ This is the same circle setup from WaterLily's README so we can compare directly
 using WaterLily
 using LilyPad
 
-function circle_lp(n, m; U=1)
+function circle_lp(n, m; Re=500, U=1)
     radius, center = m/8, m/2 - 1
     sdf(x, t) = sqrt(sum(abs2, x .- center)) - radius
 
     LilyPadSim((n, m),   # domain size
                (U, 0),   # domain velocity (& velocity scale)
                2radius;  # length scale
-               ν=0,body=AutoBody(sdf))
+               ν=2radius*U/Re, body=AutoBody(sdf), Δt=2.5)
 end
 
-lp = circle_lp(3 * 2^5, 2^6)
+lp = circle_lp(3 * 2^6, 2^7)
 sim_step!(lp, 10) # for example
 ```
 The only difference is using the `LilyPadSim` constructor instead of `WaterLily.Simulation`.
@@ -41,27 +41,25 @@ The only difference is using the `LilyPadSim` constructor instead of `WaterLily.
 The semi-Lagrangian method enables extremely large time steps without loss of stability, but this naturally changes details of the simulated solution. You can reproduce the README circle comparison locally by running:
 
 ```sh
-julia --project=. examples/readme_circle_compare.jl
+julia --project=. examples/readme_circle_compare.jl gpu
 ```
 
-One-step velocity comparison (`u_x`):
+Vorticity (`tU/L = 70`):
 
-![One-step circle velocity comparison](assets/circle_one_step_compare.png)
+![Circle vorticity comparison](assets/circle_vorticity_compare.png)
 
-Long-run force histories (`tU/L = 60`):
+Force histories:
 
 ![Circle force history comparison](assets/circle_force_compare.png)
 
-Final pressure field comparison (`tU/L = 60`):
+Outputs of `examples/readme_circle_compare.jl` (`L=32`, `Re=500`, `Δt=2.5` for LP), averaged peak-to-peak over `t=30–60`, timed on an RTX A2000 Laptop GPU.
 
-![Circle pressure comparison](assets/circle_pressure_final_compare.png)
+|           | Cd    | Cd′   | CL    | St    | s/(tU/L) |
+|-----------|-------|-------|-------|-------|----------|
+| WaterLily | 1.742 | 0.128 | 1.410 | 0.256 | 0.256    |
+| LilyPad   | 1.891 | 0.141 | 1.513 | 0.256 | 0.019    |
 
-Outputs of `examples/readme_circle_compare.jl` (`ν=0` for both, `Δt=1.5` for LP),
-averaged peak-to-peak over `t=30–60`.
-
-- `drag_mean_err = 0.238`  (LP predicts ~24% lower mean drag than WL)
-- `drag_std_err  = 0.015`  (~1.5% smaller drag oscillation amplitude)
-- `lift_std_err  = -0.040` (~4% larger lift oscillation amplitude)
+LilyPad is ~13× faster: a 7× larger time step (WaterLily's viscous CFL gives `Δt≈0.35`) and 1.9× cheaper steps, since this small 2D case is kernel-launch bound and LilyPad launches fewer kernels.
 
 ## Quick Switching Pattern
 
@@ -86,7 +84,7 @@ lp = circle(LilyPadSim, 96, 64)
 This package is still under development.
 
 - Validated in 2D and 3D on SIMD, CPU, and GPU.
-- Inviscid: `ν≠0` is ignored with a warning.
+- Viscous diffusion along the trajectories, stable for `νΔt ≤ 1/3` (grid units).
 - No acceleration term: `g` and `udf` are not supported.
 - The time-stepping defaults at `Δt = 1.5`, but an adaptive scheme that takes advantage of SL-integration stability would be better.
 
