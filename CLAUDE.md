@@ -67,7 +67,7 @@ Test suite runs on `Array` and/or `CuArray`, selected like WaterLily's `WATERLIL
 - No CFL constraint from advection; `CFL(flow::LilyFlow)` returns `Δt[end]` unchanged to keep the step fixed
 - `Δt` set at construction time is the user knob for speed/accuracy tradeoff; larger `Δt` is faster but less accurate
 - Domain BCs are applied in WL's `mom_project!`, not in `mom_predict!`/`mom_correct!`
-- `ν≠0` warns; `g` and `udf` throw
+- Viscosity diffuses each BDF2 sample over its age (`quad` variance `2νΔt` and `4νΔt`); stable for `νΔt ≤ 1/3`; `g` and `udf` throw
 - Periodic `perdir`: interpolation wraps instead of clamping, and the face at index 2 is advected
 - On WL bumps, diff the overridden functions against upstream, not just their signatures
 

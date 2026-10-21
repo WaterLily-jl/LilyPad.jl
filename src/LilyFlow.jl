@@ -3,7 +3,7 @@ import WaterLily: @loop, inside_u, μddn, mom_project!, CFL
 """
     LilyFlow{D,T,...} <: WaterLily.AbstractFlow{D,T}
 
-`WaterLily.Flow` advanced by a semi-Lagrangian BDF2 step. Inviscid: `ν≠0` warns, `g` and `udf` throw.
+`WaterLily.Flow` advanced by a semi-Lagrangian BDF2 step, stable for `νΔt ≤ 1/3`. `g` and `udf` throw.
 """
 struct LilyFlow{D, T, Sf<:AbstractArray{T}, Vf<:AbstractArray{T}, Tf<:AbstractArray{T}, Lf} <: AbstractFlow{D,T}
     flow :: Flow{D,T,Sf,Vf,Tf,Lf}
@@ -13,7 +13,7 @@ end
 function LilyFlow(args...; kwargs...)
     flow = Flow(args...; kwargs...)
     isnothing(flow.g) || throw(ArgumentError("LilyFlow does not support `g`"))
-    iszero(flow.ν) || @warn "LilyFlow is inviscid: ν=$(flow.ν) is ignored"
+    flow.ν * flow.Δt[end] ≤ 1/3 || throw(ArgumentError("LilyFlow needs νΔt ≤ 1/3, got $(flow.ν * flow.Δt[end])"))
     LilyFlow(flow, similar(flow.u), similar(flow.u))
 end
 
@@ -25,12 +25,12 @@ Base.setproperty!(a::LilyFlow, name::Symbol, x) =
 """
     mom_step!(a::LilyFlow, b::AbstractPoisson)
 
-Semi-Lagrangian BDF2 step `(3uⁿ⁺¹ - 4uⁿ(x) + uⁿ⁻¹(x⁻))/2Δt = -∇pⁿ⁺¹` with BDIM.
+Semi-Lagrangian BDF2 step `(3uⁿ⁺¹ - 4uⁿ(x) + uⁿ⁻¹(x⁻))/2Δt = -∇pⁿ⁺¹ + ν∇²u` with BDIM.
 """
 function WaterLily.mom_step!(a::LilyFlow, b::WaterLily.AbstractPoisson; udf=nothing, kwargs...)
     isnothing(udf) || throw(ArgumentError("LilyFlow does not support `udf`"))
     @loop (a.u⁺[Ii], a.ū[Ii]) = ((3a.u[Ii] - a.u⁰[Ii]) / 2, (a.u[Ii] + a.u⁰[Ii]) / 2) over Ii ∈ CartesianIndices(a.u)
-    advect!(a.f, (a.u, a.u⁰), (a.u⁺, a.ū), a.Δt[end], a.V, a.perdir)
+    advect!(a.f, (a.u, a.u⁰), (a.u⁺, a.ū), a.Δt[end], a.V, a.perdir, a.ν)
     a.u⁰ .= a.u
     BDIM!(a)
     a.p .*= eltype(a.p)(2/3) # projecting over Δt instead of 2Δt/3
