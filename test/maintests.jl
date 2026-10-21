@@ -154,6 +154,11 @@ end
         sim = LilyPadSim(N, (0, 0), L; U=1, u0=tgv, perdir=(1, 2), Δt=0.5, T=Float32, mem=f); u0 = Array(sim.flow.u)
         foreach(_ -> sim_step!(sim), 1:10)
         @test maximum(abs.(Array(sim.flow.u) .- u0)[2:L+1, 2:L+1, :]) < 2.5f-2
+
+        # Checkerboard transported at c=0.4 must not grow (BDF2 stencil-mismatch instability)
+        sim = LilyPadSim(N, (0.4f0, 0), L; u0=(i, x) -> i == 1 ? 0.4f0 : 0.01f0 * sinpi(x[1]), perdir=(1, 2), Δt=1, T=Float32, mem=f)
+        foreach(_ -> sim_step!(sim), 1:20)
+        @test maximum(abs, Array(sim.flow.u)[2:L+1, 2:L+1, 2]) < 0.01f0
     end
 end
 
