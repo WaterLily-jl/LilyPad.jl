@@ -61,7 +61,6 @@ not yet been considered and discussed.
 
 Test suite runs on `Array` and/or `CuArray`, selected like WaterLily's `WATERLILY_BACKENDS`: `LILYPAD_BACKENDS=cpu|cuda|all` (default `cpu`). CUDA is not a test dependency; it is installed on demand when requested and skipped with a warning if not functional. Run GPU tests locally with `LILYPAD_BACKENDS=all` before any PR touching kernels or tests.
 - GPU-safe test closures: capture only isbits values (use `f0` literals, not `T(...)`), and no `x[1:2]`-style slices of `SVector`s (they allocate).
-- Open issue: with Biot BCs, ghost corners/edges of `u` are never set (`pflowBC!`/`biotBC!` skip them), but LP's `vinterp`/`quad` can read them near domain corners. Since WL 1.9.2 (`fill!(a.u,0)` in `mom_step!`) they differ between LP and WL, so the Biot parity assertion is marked `broken=true` until BiotSavartBCs.jl#28 is released; then bump compat and remove the marker. Keep comparing them in tests.
 
 ## Scheme Notes (Semi-Lagrangian two-step)
 - Diffusion omitted in v0.1 (inviscid semi-Lagrangian)
