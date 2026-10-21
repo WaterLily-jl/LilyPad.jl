@@ -30,7 +30,7 @@ end
     D, T = 2, Float32
     N = (6, 6)  # interior cells; full array is (N.+2) with ghosts
     U = SVector{D,T}(1, 2)
-    dt = T(0.3)
+    dt = T(0.25)
 
     u_cpu = zeros(T, N .+ 2..., D); apply!((i, x) -> U[i], u_cpu)
     x0 = SVector{D,T}(1.0, 1.5)
@@ -42,8 +42,9 @@ end
         apply!((i, x) -> U[i], u)
         src = zeros(T, N .+ 2..., D) |> f
         apply!((i, x) -> x[i], src)
+        src⁻ = zero(src); apply!((i, x) -> x[i] + dt * U[i], src⁻)
         out = zeros(T, N .+ 2..., D) |> f
-        advect!(out, src, u, dt, zero(src))
+        advect!(out, (src, src⁻), (u, u), dt, zero(src))
 
         ref = zeros(T, N .+ 2..., D)
         apply!((i, x) -> x[i] - dt * U[i], ref)
@@ -63,10 +64,11 @@ end
         apply!((i, x) -> i == 1 ? 1f0 : 0f0, u_along)
         src_along = zeros(T, Nb + 2, Nb + 2, D) |> f
         apply!((i, x) -> p(x[1], x[2]), src_along)
-        adv_along = zero(src_along); advect!(adv_along, src_along, u_along, T(1), zero(src_along))
+        src_along⁻ = zero(src_along); apply!((i, x) -> p(x[1] + 0.5f0, x[2]), src_along⁻)
+        adv_along = zero(src_along); advect!(adv_along, (src_along, src_along⁻), (u_along, u_along), 0.5f0, zero(src_along))
 
         ref_along = zeros(T, Nb + 2, Nb + 2, D)
-        apply!((i, x) -> p(x[1] - T(1), x[2]), ref_along)
+        apply!((i, x) -> p(x[1] - 0.5f0, x[2]), ref_along)
         d_along = Array(adv_along)[:, :, 1] - ref_along[:, :, 1]
         r_low = (3:Nb+1, 2:2)
         @test maximum(abs.(d_along[r_low...])) < 2f-4
@@ -77,7 +79,8 @@ end
         apply!((i, x) -> i == 2 ? -1f0 : 0f0, u_cross)
         src_cross = zeros(T, Nb + 2, Nb + 2, D) |> f
         apply!((i, x) -> p(x[1], x[2]), src_cross)
-        adv_cross = zero(src_cross); advect!(adv_cross, src_cross, u_cross, T(1), zero(src_cross))
+        src_cross⁻ = zero(src_cross); apply!((i, x) -> p(x[1], x[2] - 1f0), src_cross⁻)
+        adv_cross = zero(src_cross); advect!(adv_cross, (src_cross, src_cross⁻), (u_cross, u_cross), T(1), zero(src_cross))
 
         ref_cross = zeros(T, Nb + 2, Nb + 2, D)
         apply!((i, x) -> p(x[1], x[2] + T(1)), ref_cross)
@@ -88,7 +91,8 @@ end
         # 4) Periodic wave shifted one cell is exact, including across the seam.
         n = 16; u1, s = (zeros(T, n + 2, n + 2, D) |> f for _ in 1:2)
         apply!((i, x) -> ifelse(i == 1, 1f0, 0f0), u1); apply!((i, x) -> sinpi(2x[1] / n), s)
-        a = zero(s); advect!(a, s, u1, T(1), zero(s), (1,))
+        s⁻ = zero(s); apply!((i, x) -> sinpi(2(x[1] + 1) / n), s⁻)
+        a = zero(s); advect!(a, (s, s⁻), (u1, u1), T(1), zero(s), (1,))
         @test maximum(abs.(Array(a)[2:n+1, 2:n+1, 1] .- [sinpi(2(I - 3) / n) for I in 2:n+1, _ in 2:n+1])) < 1f-5
     end
 end
