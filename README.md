@@ -86,7 +86,7 @@ lp = circle(LilyPadSim, 96, 64)
 This package is still under development.
 
 - Validated in 2D and 3D on SIMD, CPU, and GPU.
-- Inviscid: `ν≠0` is ignored with a warning.
+- Viscous diffusion smooths each departure sample with a Gaussian of variance `2νΔt`; stable for `νΔt ≤ 1/3`.
 - No acceleration term: `g` and `udf` are not supported.
 - The time-stepping defaults at `Δt = 1.5`, but an adaptive scheme that takes advantage of SL-integration stability would be better.
 
