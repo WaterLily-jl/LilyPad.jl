@@ -1,62 +1,68 @@
-import WaterLily: @loop, inside_u, ∂, μddn, perBC!
+import WaterLily: @loop, inside_u, μddn, mom_project!, CFL
 
 """
     LilyFlow{D,T,...} <: WaterLily.AbstractFlow{D,T}
 
-Thin wrapper around `WaterLily.Flow` that overrides `mom_predict!`, `mom_correct!`
-`BDIM!` and `CFL` with semi-Lagrangian advection functions, stable for `νΔt ≤ 1/3`.
-`g` and `udf` throw.
+Semi-Lagrangian advection-reflection `Flow`, stable for `νΔt ≤ 2/3`.
 """
-struct LilyFlow{D, T, Sf<:AbstractArray{T}, Vf<:AbstractArray{T}, Tf<:AbstractArray{T}, Lf} <: AbstractFlow{D,T}
+struct LilyFlow{D, T, Sf<:AbstractArray{T}, Vf<:AbstractArray{T}, Tf<:AbstractArray{T}, Lf, Df<:AbstractArray{SVector{D,T}}} <: AbstractFlow{D,T}
     flow :: Flow{D,T,Sf,Vf,Tf,Lf}
+    r :: Vf
+    δp :: Sf
+    disp :: Df
 end
 function LilyFlow(args...; kwargs...)
     flow = Flow(args...; kwargs...)
     isnothing(flow.g) || throw(ArgumentError("LilyFlow does not support `g`"))
-    flow.ν * flow.Δt[end] ≤ 1/3 || throw(ArgumentError("LilyFlow needs νΔt ≤ 1/3, got $(flow.ν * flow.Δt[end])"))
-    LilyFlow(flow)
+    flow.ν * flow.Δt[end] ≤ 2/3 || throw(ArgumentError("LilyFlow needs νΔt ≤ 2/3, got $(flow.ν * flow.Δt[end])"))
+    LilyFlow(flow, zero(flow.u), zero(flow.p), similar(flow.p, SVector{ndims(flow.p),eltype(flow.p)}))
 end
 
 Base.getproperty(a::LilyFlow, name::Symbol) =
-    name === :flow ? getfield(a, :flow) : getproperty(getfield(a, :flow), name)
-Base.setproperty!(a::LilyFlow, name::Symbol, x) =
-    setproperty!(getfield(a, :flow), name, x)
+    name ∈ (:flow, :r, :δp, :disp) ? getfield(a, name) : getproperty(getfield(a, :flow), name)
+Base.setproperty!(a::LilyFlow, name::Symbol, x) = setproperty!(getfield(a, :flow), name, x)
 
-"""    mom_predict!(a::LilyFlow, t₀, t₁)
-
-Semi-Lagrangian predictor: self-advect `u⁰` and apply BDIM blending.
 """
-function WaterLily.mom_predict!(a::LilyFlow{D}, t₀, t₁; udf=nothing, kwargs...) where D
+    mom_step!(a::LilyFlow, b::AbstractPoisson; udf=nothing)
+
+Semi-Lagrangian advection-reflection step (Zehnder et al. 2018). Not compatible with a `udf` user-defined function.
+"""
+function WaterLily.mom_step!(a::LilyFlow, b::WaterLily.AbstractPoisson; udf=nothing, kwargs...)
     isnothing(udf) || throw(ArgumentError("LilyFlow does not support `udf`"))
-    advect!(a.f, a.u⁰, a.u⁰, t₁ - t₀, a.V, a.perdir, a.ν)
-    BDIM!(a)
+    h, t = a.Δt[end] / 2, sum(a.Δt)
+    @loop (a.u⁰[Ii], a.u[Ii]) = (a.u[Ii], (5a.u[Ii] - a.u⁰[Ii]) / 4) over Ii ∈ CartesianIndices(a.u)
+    advect!(a.f, a.u⁰, a.u, h, a.V, a.perdir, a.ν; a.disp); BDIM!(a)
+    a.p .-= a.δp; mom_project!(a, b, 2, t - h; itmx=1)
+    r, u, u⁰, μ₀, p, perdir = a.r, a.u, a.u⁰, a.μ₀, a.p, a.perdir
+    @loop (r[Ii], u[Ii]) = (reflect(Ii, u, μ₀, p, h, perdir), (3u[Ii] - u⁰[Ii]) / 2) over Ii ∈ CartesianIndices(u)
+    advect!(a.f, a.r, a.u, h, a.V, a.perdir, a.ν; a.disp); BDIM!(a)
+    correct!(a.u, a, 2h); a.p .+= a.δp; a.δp .= a.p .- a.δp
+    mom_project!(a, b, 1, t); a.δp .= a.p .- a.δp
+    push!(a.Δt, CFL(a))
 end
 
-"""    mom_correct!(a::LilyFlow, t)
+@inline function reflect(Ii::CartesianIndex{Np1}, u, μ₀, p, h, perdir) where Np1
+    I, i, N = front(Ii), last(Ii), size(p)
+    i ∉ perdir && !(2 ≤ I[i] ≤ N[i] - 1) && return u[Ii]
+    J = CartesianIndex(ntuple(d -> d ∈ perdir ? (I[d] == 1 ? N[d] - 1 : I[d] == N[d] ? 2 : I[d]) : clamp(I[d], 2, N[d] - 1), Np1 - 1))
+    u[Ii] - h * μ₀[J, i] * WaterLily.∂(i, J, p)
+end
 
-Semi-Lagrangian corrector: advect `u⁰ - 0.5*dt*μ₀*∇p` under the averaged
-velocity `0.5*(u⁰+u_pred)` and apply BDIM blending. Overwrites `u⁰` with the advected source.
-"""
-function WaterLily.mom_correct!(a::LilyFlow{D}, t; kwargs...) where D
-    dt = a.Δt[end]
-    a.u .= (a.u .+ a.u⁰) ./ 2
-    @loop a.u⁰[Ii] -= (dt / 2) * a.μ₀[Ii] * ∂(last(Ii), front(Ii), a.p) over Ii ∈ inside_u(size(a.p))
-    perBC!(a.u⁰, a.perdir)
-    advect!(a.f, a.u⁰, a.u, dt, a.V, a.perdir, a.ν)
-    BDIM!(a)
+function correct!(u, a::LilyFlow, c)
+    μ₀, p = a.μ₀, a.p
+    for i ∈ 1:ndims(p); @loop u[I, i] += c * μ₀[I, i] * WaterLily.∂(i, I, p) over I ∈ inside(p); end
 end
 
 """
     CFL(a::LilyFlow)
 
-Semi-Lagrangian step size is unlimited, so return the current timestep `a.Δt[end]`.
+Fixed time step `a.Δt[end]`.
 """
 WaterLily.CFL(a::LilyFlow; kwargs...) = a.Δt[end]
 
 """
     BDIM!(a::LilyFlow)
 
-Semi-Lagrangian BDIM blending on the advected velocity field (`advect!` has already subtracted `V`).
+BDIM blending of the advected velocity `f`, which has `V` subtracted.
 """
 BDIM!(a::LilyFlow) = @loop a.u[Ii] = μddn(Ii, a.μ₁, a.f) + a.V[Ii] + a.μ₀[Ii] * a.f[Ii] over Ii ∈ inside_u(size(a.p))
-

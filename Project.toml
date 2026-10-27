@@ -26,3 +26,7 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
 test = ["BiotSavartBCs", "Pkg", "Test"]
+
+[sources]
+WaterLily = {url = "https://github.com/marinlauber/WaterLily.jl", rev = "poisson-solver-control"}
+BiotSavartBCs = {url = "https://github.com/WaterLily-jl/BiotSavartBCs.jl", rev = "poisson-kwargs"}

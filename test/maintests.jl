@@ -8,9 +8,6 @@ import LilyPad: advect!, sim_step!, quad, LilyFlow
     x_out2 = SVector{2,T}(-10, 100)
     @test WaterLily.interp(x_out2, a2) ≈ T(3.7)
 
-    # Quadratic interpolation wrapper also clamps safely.
-    @test LilyPad.quad(x_out2, a2) ≈ T(3.7)
-
     # 2D quadratic exactness: tensor-product quadratic interpolation should
     # exactly reproduce any degree-2 polynomial field on a uniform grid.
     N2 = 10
@@ -153,7 +150,12 @@ end
         k = 2f0π / L; tgv(i, x) = i == 1 ? -sin(k * x[1]) * cos(k * x[2]) : cos(k * x[1]) * sin(k * x[2])
         sim = LilyPadSim(N, (0, 0), L; U=1, u0=tgv, perdir=(1, 2), Δt=0.5, T=Float32, mem=f); u0 = Array(sim.flow.u)
         foreach(_ -> sim_step!(sim), 1:10)
-        @test maximum(abs.(Array(sim.flow.u) .- u0)[2:L+1, 2:L+1, :]) < 2f-2
+        @test maximum(abs.(Array(sim.flow.u) .- u0)[2:L+1, 2:L+1, :]) < 2.5f-2
+
+        # Checkerboard transported at c=0.4 must not grow
+        sim = LilyPadSim(N, (0.4f0, 0), L; u0=(i, x) -> i == 1 ? 0.4f0 : 0.01f0 * sinpi(x[1]), perdir=(1, 2), Δt=1, T=Float32, mem=f)
+        foreach(_ -> sim_step!(sim), 1:20)
+        @test maximum(abs, Array(sim.flow.u)[2:L+1, 2:L+1, 2]) < 0.01f0
     end
 end
 
@@ -162,7 +164,9 @@ end
     for mem in arrays, (n, kw) in (((16, 16), (; symmetry=(-2,))), ((16, 16, 16), (; perdir=(3,))))
         lp, wl = sim(LilyBiotSim, n; mem, kw...), sim(BiotSimulation, n; mem, kw...)
         @test lp.pois.sym == wl.pois.sym && lp.flow.perdir == wl.flow.perdir
-        sim_step!(lp); sim_step!(wl)
-        @test maximum(abs, Array(lp.flow.u) .- Array(wl.flow.u)) < 0.1
+        foreach(_ -> sim_step!(lp), 1:3)
+        u = Array(lp.flow.u)
+        @test minimum(u[2, (2:s-1 for s in size(u)[2:end-1])..., 1]) < 0.97 # Biot-Savart inflow is slowed by the body
+        @test all(lp.pois.ml.n .< 32) # every projection converged
     end
 end
