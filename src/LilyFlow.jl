@@ -4,8 +4,8 @@ import WaterLily: @loop, inside_u, ∂, μddn, perBC!
     LilyFlow{D,T,...} <: WaterLily.AbstractFlow{D,T}
 
 Thin wrapper around `WaterLily.Flow` that overrides `mom_predict!`, `mom_correct!`
-`BDIM!` and `CFL` with semi-Lagrangian advection functions.
-Inviscid with no acceleration term: `ν≠0` warns, `g` and `udf` throw.
+`BDIM!` and `CFL` with semi-Lagrangian advection functions, stable for `νΔt ≤ 1/3`.
+`g` and `udf` throw.
 """
 struct LilyFlow{D, T, Sf<:AbstractArray{T}, Vf<:AbstractArray{T}, Tf<:AbstractArray{T}, Lf} <: AbstractFlow{D,T}
     flow :: Flow{D,T,Sf,Vf,Tf,Lf}
@@ -13,7 +13,7 @@ end
 function LilyFlow(args...; kwargs...)
     flow = Flow(args...; kwargs...)
     isnothing(flow.g) || throw(ArgumentError("LilyFlow does not support `g`"))
-    iszero(flow.ν) || @warn "LilyFlow is inviscid: ν=$(flow.ν) is ignored"
+    flow.ν * flow.Δt[end] ≤ 1/3 || throw(ArgumentError("LilyFlow needs νΔt ≤ 1/3, got $(flow.ν * flow.Δt[end])"))
     LilyFlow(flow)
 end
 
@@ -28,7 +28,7 @@ Semi-Lagrangian predictor: self-advect `u⁰` and apply BDIM blending.
 """
 function WaterLily.mom_predict!(a::LilyFlow{D}, t₀, t₁; udf=nothing, kwargs...) where D
     isnothing(udf) || throw(ArgumentError("LilyFlow does not support `udf`"))
-    advect!(a.f, a.u⁰, a.u⁰, t₁ - t₀, a.V, a.perdir)
+    advect!(a.f, a.u⁰, a.u⁰, t₁ - t₀, a.V, a.perdir, a.ν)
     BDIM!(a)
 end
 
@@ -42,7 +42,7 @@ function WaterLily.mom_correct!(a::LilyFlow{D}, t; kwargs...) where D
     a.u .= (a.u .+ a.u⁰) ./ 2
     @loop a.u⁰[Ii] -= (dt / 2) * a.μ₀[Ii] * ∂(last(Ii), front(Ii), a.p) over Ii ∈ inside_u(size(a.p))
     perBC!(a.u⁰, a.perdir)
-    advect!(a.f, a.u⁰, a.u, dt, a.V, a.perdir)
+    advect!(a.f, a.u⁰, a.u, dt, a.V, a.perdir, a.ν)
     BDIM!(a)
 end
 
