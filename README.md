@@ -21,17 +21,17 @@ This is the same circle setup from WaterLily's README so we can compare directly
 using WaterLily
 using LilyPad
 
-function circle_lp(n, m; U=1)
+function circle_lp(n, m; Re=500, U=1)
     radius, center = m/8, m/2 - 1
     sdf(x, t) = sqrt(sum(abs2, x .- center)) - radius
 
     LilyPadSim((n, m),   # domain size
                (U, 0),   # domain velocity (& velocity scale)
                2radius;  # length scale
-               ν=0,body=AutoBody(sdf))
+               ν=2radius*U/Re, body=AutoBody(sdf), Δt=2.5)
 end
 
-lp = circle_lp(3 * 2^5, 2^6)
+lp = circle_lp(3 * 2^7, 2^8)
 sim_step!(lp, 10) # for example
 ```
 The only difference is using the `LilyPadSim` constructor instead of `WaterLily.Simulation`.
@@ -41,27 +41,28 @@ The only difference is using the `LilyPadSim` constructor instead of `WaterLily.
 The semi-Lagrangian method enables extremely large time steps without loss of stability, but this naturally changes details of the simulated solution. You can reproduce the README circle comparison locally by running:
 
 ```sh
-julia --project=. examples/readme_circle_compare.jl
+julia --project=. examples/readme_circle_compare.jl gpu
 ```
 
-One-step velocity comparison (`u_x`):
+Vorticity (`tU/L = 75`):
 
-![One-step circle velocity comparison](assets/circle_one_step_compare.png)
+![Circle vorticity comparison](assets/circle_vorticity_compare.png)
 
-Long-run force histories (`tU/L = 60`):
+Force histories:
 
 ![Circle force history comparison](assets/circle_force_compare.png)
 
-Final pressure field comparison (`tU/L = 60`):
+Outputs of `examples/readme_circle_compare.jl` (`L=64`, `Re=500`), averaged over whole lift cycles (upward zero crossings) in `t=30–60`, timed on an RTX A2000 Laptop GPU.
 
-![Circle pressure comparison](assets/circle_pressure_final_compare.png)
+|                | Cd    | Cd′   | CL    | St    | s/(tU/L) |
+|----------------|-------|-------|-------|-------|----------|
+| WaterLily      | 1.724 | 0.130 | 1.431 | 0.258 | 1.373    |
+| LilyPad Δt=1.5 | 1.663 | 0.131 | 1.469 | 0.259 | 0.344    |
+| LilyPad Δt=2.5 | 1.644 | 0.131 | 1.525 | 0.259 | 0.202    |
 
-Outputs of `examples/readme_circle_compare.jl` (`ν=0` for both, `Δt=1.5` for LP),
-averaged peak-to-peak over `t=30–60`.
+LilyPad is within 5% of WaterLily on Cd, 1% on Cd′ and St, and 7% on CL, and 4× faster at `Δt=1.5`, 7× faster at `Δt=2.5`. Larger steps lower the drag and raise the lift amplitude.
 
-- `drag_mean_err = 0.238`  (LP predicts ~24% lower mean drag than WL)
-- `drag_std_err  = 0.015`  (~1.5% smaller drag oscillation amplitude)
-- `lift_std_err  = -0.040` (~4% larger lift oscillation amplitude)
+Each LilyPad step transports `uⁿ` along itself over `Δt` and projects (predictor), then transports `uⁿ - (Δt/2)∇p` along the average of `uⁿ` and the predicted velocity and projects again (corrector), so it costs two projections like WaterLily's step. Viscous diffusion acts along the trajectories, which needs `νΔt ≤ 1/3`; at this Reynolds number that caps the step near `Δt=2.6`.
 
 ## Quick Switching Pattern
 
