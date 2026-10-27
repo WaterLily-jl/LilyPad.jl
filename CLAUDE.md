@@ -63,11 +63,11 @@ Test suite runs on `Array` and/or `CuArray`, selected like WaterLily's `WATERLIL
 - GPU-safe test closures: capture only isbits values (use `f0` literals, not `T(...)`), and no `x[1:2]`-style slices of `SVector`s (they allocate).
 
 ## Scheme Notes (Semi-Lagrangian two-step)
-- Diffusion omitted in v0.1 (inviscid semi-Lagrangian)
+- Viscosity diffuses each departure sample with `quad` variance `2νΔt` (predictor and corrector); weights stay positive for `νΔt ≤ 1/3`, which the constructor checks
 - No CFL constraint from advection; `CFL(flow::LilyFlow)` returns `Δt[end]` unchanged to keep the step fixed
 - `Δt` set at construction time is the user knob for speed/accuracy tradeoff; larger `Δt` is faster but less accurate
 - Domain BCs are applied in WL's `mom_project!`, not in `mom_predict!`/`mom_correct!`
-- `ν≠0` warns; `g` and `udf` throw
+- `g` and `udf` throw
 - Periodic `perdir`: interpolation wraps instead of clamping, and the face at index 2 is advected
 - On WL bumps, diff the overridden functions against upstream, not just their signatures
 
@@ -110,5 +110,5 @@ Test suite runs on `Array` and/or `CuArray`, selected like WaterLily's `WATERLIL
 1. ✅ Refactored to WL `Flow-refactor` branch: `LilyFlow <: AbstractFlow{D,T}` thin wrapper, `LilyPadSim` constructor alias, `SemiMomStep.jl` deleted, `fixed_dt` removed.
 2. ✅ GPU tests enabled: CUDA added as optional test dependency; closures in tests use `f0` literals to be GPU-compatible; `Pkg.test()` runs on both `Array` and `CuArray`.
 3. ✅ Ensure working interoperability with BiotSavartBCs.jl capability for "unbounded" simulations.
-4. Add viscous diffusion term with primary consideration on the time-step stability vs simulation speed for intermediate and high Re cases (>1k). Update WL vs LP benchmarks.
+4. ✅ Add viscous diffusion term with primary consideration on the time-step stability vs simulation speed for intermediate and high Re cases (>1k). Update WL vs LP benchmarks.
 5. ✅ Develop real-time interactive 2D fluid simulation and vizualization example using ParticleViz and PixelBodies.
