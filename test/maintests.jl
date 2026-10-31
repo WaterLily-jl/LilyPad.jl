@@ -66,7 +66,7 @@ end
         adv_along = zero(src_along); advect!(adv_along, src_along, u_along, T(1), zero(src_along))
 
         ref_along = zeros(T, Nb + 2, Nb + 2, D)
-        apply!((i, x) -> p(x[1] - T(1), x[2]), ref_along)
+        apply!((i, x) -> p(x[1] - 1, x[2]), ref_along)
         d_along = Array(adv_along)[:, :, 1] - ref_along[:, :, 1]
         r_low = (3:Nb+1, 2:2)
         @test maximum(abs.(d_along[r_low...])) < 2f-4
@@ -80,7 +80,7 @@ end
         adv_cross = zero(src_cross); advect!(adv_cross, src_cross, u_cross, T(1), zero(src_cross))
 
         ref_cross = zeros(T, Nb + 2, Nb + 2, D)
-        apply!((i, x) -> p(x[1], x[2] + T(1)), ref_cross)
+        apply!((i, x) -> p(x[1], x[2] + 1), ref_cross)
         d_cross = Array(adv_cross)[:, :, 1] - ref_cross[:, :, 1]
         @test maximum(abs.(d_cross[r_low...])) < 2f-4
         @test all(isfinite, Array(adv_cross))
